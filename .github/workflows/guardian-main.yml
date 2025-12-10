@@ -1,10 +1,8 @@
 name: Guardián de Main
 
 on:
-  # --- ESTA ES LA PARTE QUE FALTABA ---
   pull_request:
     branches: [ "main" ]
-  # ------------------------------------
   workflow_call:
 
 jobs:
@@ -15,26 +13,16 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            // --- CONFIGURACIÓN DE USUARIOS VIP ---
-            // Escribe aquí los usuarios exactos
-            const allowedUsers = ['TuUsuario', 'OtroAdmin', 'TechLead'];
-            
+            // LISTA DE USUARIOS PERMITIDOS
+            const allowedUsers = ['psaf-5', 'OtroAdmin'];
             const actor = context.actor;
-            console.log(`Usuario intentando PR a main: ${actor}`);
 
-            // Validación
             if (!allowedUsers.includes(actor)) {
-              
-              // 1. Comentario en el PR
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.issue.number, // Ajuste para funcionar con el trigger pull_request
-                body: "🛑 **¡ACCIÓN BLOQUEADA!** 🛑\n\nHola @" + actor + ", estás intentando fusionar cambios directamente a `main`.\n\n✋ **No tienes permisos para esta acción.**\n\n✅ Por favor cambia la rama destino hacia **`developer`**."
+                issue_number: context.issue.number,
+                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nNo tienes permisos para ir a main. Usa developer."
               });
-
-              // 2. Bloquear Merge
-              core.setFailed(`El usuario ${actor} no está autorizado para mergear a main.`);
-            } else {
-              console.log("✅ Usuario autorizado.");
+              core.setFailed(`Usuario ${actor} no autorizado.`);
             }
