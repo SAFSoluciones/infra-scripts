@@ -1,9 +1,9 @@
 name: Guardián de Main
 
 on:
-  pull_request:
+  pull_request:          # <--- ESTA LÍNEA ES LA QUE GITHUB DICE QUE FALTA
     branches: [ "main" ]
-  workflow_call:
+  workflow_call:         # <--- Esta es la que ya tenías
 
 jobs:
   verificar-permisos:
@@ -14,7 +14,7 @@ jobs:
         with:
           script: |
             // LISTA DE USUARIOS PERMITIDOS
-            const allowedUsers = ['psaf-5']; // Puse tu usuario real que vi en la foto
+            const allowedUsers = ['psaf-5']; 
             const actor = context.actor;
 
             console.log("Usuario actual: " + actor);
@@ -24,7 +24,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: "🛑 **ACCION BLOQUEADA** 🛑\n\nNo tienes permisos para ir a main."
+                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nNo tienes permisos para ir a main."
               });
               core.setFailed(`Usuario ${actor} no autorizado.`);
             }
