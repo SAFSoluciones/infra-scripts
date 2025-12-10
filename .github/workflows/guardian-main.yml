@@ -2,6 +2,10 @@ name: Guardian de Main
 on:
   pull_request:
 
+permissions:
+  pull-requests: write  # Permite comentar en PRs
+  issues: write         # Permite comentar en Issues
+
 jobs:
   verificar-permisos:
     runs-on: ubuntu-latest
