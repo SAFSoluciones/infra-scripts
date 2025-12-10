@@ -14,7 +14,7 @@ jobs:
         with:
           script: |
             // LISTA DE USUARIOS PERMITIDOS
-            const allowedUsers = ['psaf-5', 'OtroAdmin'];
+            const allowedUsers = ['', 'OtroAdmin'];
             const actor = context.actor;
 
             if (!allowedUsers.includes(actor)) {
