@@ -1,0 +1,38 @@
+name: Guardián de Main
+
+on:
+  # Esto permite que este workflow sea llamado desde otros repositorios
+  workflow_call:
+
+jobs:
+  verificar-permisos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar usuario
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // --- CONFIGURACIÓN ---
+            // Pon aquí los usuarios de GitHub (tal cual aparecen en su perfil)
+            const allowedUsers = ['psaf-5', 'kmponcesalgado', 'wjlopezc'];
+            
+            // --- LÓGICA ---
+            const actor = context.actor;
+            console.log(`Usuario intentando PR a main: ${actor}`);
+
+            // Si el usuario NO está en la lista permitida...
+            if (!allowedUsers.includes(actor)) {
+              
+              // 1. Poner comentario en el PR avisando del error
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: "🛑 **¡ACCIÓN BLOQUEADA!** 🛑\n\nHola @" + actor + ", estás intentando fusionar cambios directamente a `main`.\n\n⚠️ **No tienes permisos para esta acción.**\n\n✅ Por favor, cierra este PR o cambia la rama destino hacia **`developer`**.\n\n*Este control es automático por políticas de la organización.*"
+              });
+
+              // 2. Hacer fallar el check para bloquear el botón de Merge
+              core.setFailed(`Usuario ${actor} no autorizado para mergear a main.`);
+            } else {
+              console.log("✅ Usuario autorizado. El check ha pasado exitosamente.");
+            }
