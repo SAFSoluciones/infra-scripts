@@ -1,41 +1,49 @@
-name: Guardian de Main
+name: Guardian Main
 on:
   pull_request:
 
 permissions:
-  pull-requests: write  # Permite comentar en PRs
-  issues: write         # Permite comentar en Issues
+  pull-requests: write
+  issues: write
 
 jobs:
   verificar-permisos:
     runs-on: ubuntu-latest
     steps:
-      - name: Validar usuario
+      - name: Validar usuario y titulo
         uses: actions/github-script@v6
         with:
           script: |
             // --- CONFIGURACIÓN ---
-            // Pon aquí los usuarios que SÍ pueden pasar a main.
-            // (He puesto tu usuario 'psaf-5' para que tú sí puedas,
-            // pero si quieres probar el bloqueo, quítalo de la lista un momento).
             const allowedUsers = ['psaf-5', 'OtroAdmin']; 
+            const magicWord = 'hotfix'; // La palabra clave
             
+            // Obtenemos datos del contexto
             const actor = context.actor;
-            console.log("Usuario actual: " + actor);
+            const title = context.payload.pull_request.title.toLowerCase(); // Convertimos a minúsculas
+            
+            console.log(`Usuario: ${actor} | Título: ${title}`);
 
-            // --- VALIDACIÓN ---
-            if (!allowedUsers.includes(actor)) {
-              
-              // 1. Dejar comentario de aviso
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nHola @" + actor + ", estás intentando ir directo a **MAIN**.\n\n✋ No tienes permisos para esta acción.\n👉 Por favor cambia la rama destino hacia **DEVELOPER**."
-              });
-
-              // 2. Bloquear el botón de Merge (Rojo)
-              core.setFailed(`Usuario ${actor} no autorizado.`);
-            } else {
-              console.log("✅ Usuario autorizado.");
+            // --- LÓGICA DE VALIDACIÓN ---
+            
+            // Caso 1: Es un Hotfix de emergencia (Permitimos pasar a cualquiera)
+            if (title.includes(magicWord)) {
+              console.log("✅ Acceso permitido por Hotfix.");
+              return; // Salimos del script exitosamente
             }
+
+            // Caso 2: Es un usuario VIP (Permitimos pasar)
+            if (allowedUsers.includes(actor)) {
+               console.log("✅ Acceso permitido por Usuario Admin.");
+               return; // Salimos exitosamente
+            }
+
+            // Caso 3: Ni es admin, ni es hotfix -> BLOQUEO
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nHola @" + actor + ", no tienes permisos para ir a `main`.\n\n🔸 Si esto es una emergencia real, agrega la palabra **HOTFIX** al título del PR.\n🔸 De lo contrario, cambia la rama destino a **`developer`**."
+            });
+
+            core.setFailed(`Usuario ${actor} no autorizado y no es un Hotfix.`);
