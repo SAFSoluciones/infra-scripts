@@ -1,9 +1,10 @@
 name: Guardián de Main
 
 on:
-pull_request:
+  # --- ESTA ES LA PARTE QUE FALTABA ---
+  pull_request:
     branches: [ "main" ]
-  # Esto permite que este workflow sea llamado desde otros repositorios
+  # ------------------------------------
   workflow_call:
 
 jobs:
@@ -14,27 +15,26 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            // --- CONFIGURACIÓN ---
-            // Pon aquí los usuarios de GitHub (tal cual aparecen en su perfil)
-            const allowedUsers = ['psaf-5', 'kmponcesalgado', 'wjlopezc'];
+            // --- CONFIGURACIÓN DE USUARIOS VIP ---
+            // Escribe aquí los usuarios exactos
+            const allowedUsers = ['TuUsuario', 'OtroAdmin', 'TechLead'];
             
-            // --- LÓGICA ---
             const actor = context.actor;
             console.log(`Usuario intentando PR a main: ${actor}`);
 
-            // Si el usuario NO está en la lista permitida...
+            // Validación
             if (!allowedUsers.includes(actor)) {
               
-              // 1. Poner comentario en el PR avisando del error
+              // 1. Comentario en el PR
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
-                body: "🛑 **¡ACCIÓN BLOQUEADA!** 🛑\n\nHola @" + actor + ", estás intentando fusionar cambios directamente a `main`.\n\n⚠️ **No tienes permisos para esta acción.**\n\n✅ Por favor, cierra este PR o cambia la rama destino hacia **`developer`**.\n\n*Este control es automático por políticas de la organización.*"
+                issue_number: context.issue.number, // Ajuste para funcionar con el trigger pull_request
+                body: "🛑 **¡ACCIÓN BLOQUEADA!** 🛑\n\nHola @" + actor + ", estás intentando fusionar cambios directamente a `main`.\n\n✋ **No tienes permisos para esta acción.**\n\n✅ Por favor cambia la rama destino hacia **`developer`**."
               });
 
-              // 2. Hacer fallar el check para bloquear el botón de Merge
-              core.setFailed(`Usuario ${actor} no autorizado para mergear a main.`);
+              // 2. Bloquear Merge
+              core.setFailed(`El usuario ${actor} no está autorizado para mergear a main.`);
             } else {
-              console.log("✅ Usuario autorizado. El check ha pasado exitosamente.");
+              console.log("✅ Usuario autorizado.");
             }
