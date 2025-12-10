@@ -14,15 +14,17 @@ jobs:
         with:
           script: |
             // LISTA DE USUARIOS PERMITIDOS
-            const allowedUsers = ['', 'OtroAdmin'];
+            const allowedUsers = ['psaf-5']; // Puse tu usuario real que vi en la foto
             const actor = context.actor;
+
+            console.log("Usuario actual: " + actor);
 
             if (!allowedUsers.includes(actor)) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nNo tienes permisos para ir a main. Usa developer."
+                body: "🛑 **ACCION BLOQUEADA** 🛑\n\nNo tienes permisos para ir a main."
               });
               core.setFailed(`Usuario ${actor} no autorizado.`);
             }
