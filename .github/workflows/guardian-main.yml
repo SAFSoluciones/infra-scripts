@@ -3,7 +3,35 @@ on:
   pull_request:
 
 jobs:
-  verificar:
+  verificar-permisos:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Verificando permisos"
+      - name: Validar usuario
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // --- CONFIGURACIÓN ---
+            // Pon aquí los usuarios que SÍ pueden pasar a main.
+            // (He puesto tu usuario 'psaf-5' para que tú sí puedas,
+            // pero si quieres probar el bloqueo, quítalo de la lista un momento).
+            const allowedUsers = ['psaf-5', 'OtroAdmin']; 
+            
+            const actor = context.actor;
+            console.log("Usuario actual: " + actor);
+
+            // --- VALIDACIÓN ---
+            if (!allowedUsers.includes(actor)) {
+              
+              // 1. Dejar comentario de aviso
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nHola @" + actor + ", estás intentando ir directo a **MAIN**.\n\n✋ No tienes permisos para esta acción.\n👉 Por favor cambia la rama destino hacia **DEVELOPER**."
+              });
+
+              // 2. Bloquear el botón de Merge (Rojo)
+              core.setFailed(`Usuario ${actor} no autorizado.`);
+            } else {
+              console.log("✅ Usuario autorizado.");
+            }
