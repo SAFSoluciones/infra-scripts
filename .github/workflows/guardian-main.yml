@@ -1,6 +1,8 @@
 name: Guardián de Main
 
 on:
+pull_request:
+    branches: [ "main" ]
   # Esto permite que este workflow sea llamado desde otros repositorios
   workflow_call:
 
