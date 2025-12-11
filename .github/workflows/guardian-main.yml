@@ -1,6 +1,11 @@
-name: Guardian de Main
+name: Guardian Main
+
 on:
   pull_request:
+    # ALERTA: Hemos quitado la línea 'branches: ["main"]'.
+    # Esto hace que el script corra en TODAS las ramas.
+    # - En 'developer' dará Verde (porque la lógica lo permite).
+    # - En 'main' dará Rojo (si no tienes permiso).
 
 permissions:
   pull-requests: write
@@ -10,7 +15,7 @@ jobs:
   verificar-permisos:
     runs-on: ubuntu-latest
     steps:
-      - name: Validar usuario, titulo y rama
+      - name: Validar reglas de gobernanza
         uses: actions/github-script@v6
         with:
           script: |
@@ -18,42 +23,41 @@ jobs:
             const allowedUsers = ['psaf-5', 'OtroAdmin']; 
             const magicWord = 'hotfix'; 
             
-            // --- DATOS DEL CONTEXTO ---
+            // --- DATOS ---
             const actor = context.actor;
             const title = context.payload.pull_request.title.toLowerCase();
-            // Aquí capturamos hacia dónde va el PR (main, developer, etc.)
             const targetBranch = context.payload.pull_request.base.ref; 
             
-            console.log(`Usuario: ${actor} | Rama Destino: ${targetBranch} | Título: ${title}`);
+            console.log(`Usuario: ${actor} | Rama Destino: ${targetBranch}`);
 
-            // --- REGLA 0: SI NO VA A MAIN, DEJAR PASAR ---
+            // --- REGLA 1: SI NO VA A MAIN -> PASE LIBRE (VERDE ✅) ---
             if (targetBranch !== 'main') {
-              console.log("✅ La rama destino NO es main. Se omite la validación.");
-              return; // Salimos del script exitosamente
+              console.log("✅ La rama destino NO es main. Check Verde autorizado.");
+              return; // Al hacer return aquí, el script termina con éxito.
             }
 
-            // --- REGLA 1: HOTFIX ---
+            // --- A PARTIR DE AQUÍ, SOLO APLICA SI VA A MAIN ---
+
+            // Regla 2: Es Hotfix?
             if (title.includes(magicWord)) {
               console.log("✅ Acceso permitido por Hotfix.");
               return;
             }
 
-            // --- REGLA 2: USUARIO VIP ---
+            // Regla 3: Es Admin?
             if (allowedUsers.includes(actor)) {
                console.log("✅ Acceso permitido por Usuario Admin.");
                return;
             }
 
-            // --- BLOQUEO (Solo llegamos aquí si va a MAIN y no cumple reglas 1 o 2) ---
+            // --- BLOQUEO (ROJO ❌) ---
             try {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nHola @" + actor + ", no tienes permisos para fusionar directamente a `main`.\n\n🔸 **Solución:** Cambia la rama destino a **`developer`**.\n🔸 **Emergencia:** Si es un Hotfix real, agrega la palabra **HOTFIX** al título."
+                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nHola @" + actor + ", no tienes permisos para ir directo a `main`.\n\n👉 Por favor cambia la rama destino a **`developer`**."
               });
-            } catch (e) {
-              console.log("Error al comentar: " + e);
-            }
+            } catch (e) { console.log(e); }
 
             core.setFailed(`Usuario ${actor} no autorizado para main.`);
