@@ -2,7 +2,10 @@ name: Guardian de Main
 
 on:
   pull_request:
-    # Sin filtros de branches, para que corra siempre y pueda dar el "Verde"
+    # --- LA CLAVE DEL ÉXITO ---
+    # Esto hace que el script corra no solo al abrir, sino
+    # también si cambian la rama base (edited) o reabren.
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   pull-requests: write
@@ -12,55 +15,51 @@ jobs:
   verificar-permisos:
     runs-on: ubuntu-latest
     steps:
-      - name: Validar Permisos y Rama
+      - name: Validar y Sobreescribir Estatus
         uses: actions/github-script@v6
         with:
           script: |
-            // 1. OBTENER DATOS
+            // 1. OBTENER DATOS ACTUALIZADOS
             const actor = context.actor;
-            const targetBranch = context.payload.pull_request.base.ref; // Hacia dónde va el PR
+            const targetBranch = context.payload.pull_request.base.ref; // Hacia dónde apunta AHORA
             const title = context.payload.pull_request.title.toLowerCase();
 
-            // 2. IMPRIMIR LOG PARA DEPURAR (Míralo si falla)
-            console.log("--------------------------------------------------");
-            console.log(`🤖 ANALIZANDO PR DE: ${actor}`);
-            console.log(`📍 RAMA DESTINO DETECTADA: ${targetBranch}`);
-            console.log("--------------------------------------------------");
+            console.log(`🤖 RE-EVALUANDO PR DE: ${actor}`);
+            console.log(`📍 RAMA DESTINO ACTUAL: ${targetBranch}`);
 
-            // 3. REGLA DE ORO: SI NO ES MAIN, APRUEBA EN VERDE ✅
+            // 2. FUERZA BRUTA: SI NO ES MAIN, APRUEBA (Verde)
+            // Esto "borra" (sobreescribe) cualquier error rojo anterior del mismo commit.
             if (targetBranch !== 'main') {
-              console.log("✅ La rama destino NO es main. El Guardián autoriza el paso.");
-              return; // ESTO HACE QUE EL CHECK SALGA VERDE
+              console.log("✅ Destino seguro (Developer/Otro). Autorizando inmediatamente.");
+              return; 
             }
 
-            // 4. SI LLEGAMOS AQUÍ, ES PORQUE ES MAIN. APLICAMOS SEGURIDAD 🔒
-            
-            // Lista de Admins
+            // 3. SI ES MAIN, APLICAR REGLAS
             const allowedUsers = ['psaf-5', 'OtroAdmin']; 
             
-            // ¿Es Hotfix?
+            // Regla Hotfix
             if (title.includes('hotfix')) {
-              console.log("✅ Es Main, pero es Hotfix. Autorizado.");
+              console.log("✅ Es Main, pero es Hotfix.");
               return;
             }
 
-            // ¿Es Admin?
+            // Regla Admin
             if (allowedUsers.includes(actor)) {
-               console.log("✅ Es Main, pero usuario es Admin. Autorizado.");
+               console.log("✅ Es Main, pero es Admin.");
                return;
             }
 
-            // 5. BLOQUEO FINAL (ROJO ❌)
-            // Solo llegamos aquí si: Es Main + No es Hotfix + No es Admin
-            console.log("⛔ BLOQUEANDO: Intento no autorizado a Main.");
+            // 4. BLOQUEO (Solo si sigue apuntando a Main y no tiene permiso)
+            console.log("⛔ BLOQUEANDO: Sigue apuntando a Main sin permiso.");
             
+            // Intentamos dejar comentario (sin fallar si no se puede)
             try {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nHola @" + actor + ", este PR va dirigido a **MAIN** y no tienes permisos.\n\n✅ **Solución:** Cambia la rama destino a **`developer`**."
+                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nEste PR apunta a **MAIN**.\n\n👉 **Solución:** Edita este PR (arriba a la derecha) y cambia la base a **`developer`**. El check se pondrá verde automáticamente."
               });
             } catch (e) {}
 
-            core.setFailed(`⛔ BLOQUEADO: El usuario ${actor} intentó ir a MAIN sin permiso.`);
+            core.setFailed(`⛔ Bloqueado: Destino Main no autorizado.`);
