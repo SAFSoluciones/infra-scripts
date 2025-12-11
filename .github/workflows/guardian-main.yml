@@ -2,10 +2,7 @@ name: Guardian de Main
 
 on:
   pull_request:
-    # ALERTA: Hemos quitado la línea 'branches: ["main"]'.
-    # Esto hace que el script corra en TODAS las ramas.
-    # - En 'developer' dará Verde (porque la lógica lo permite).
-    # - En 'main' dará Rojo (si no tienes permiso).
+    # Sin filtros de branches, para que corra siempre y pueda dar el "Verde"
 
 permissions:
   pull-requests: write
@@ -15,49 +12,55 @@ jobs:
   verificar-permisos:
     runs-on: ubuntu-latest
     steps:
-      - name: Validar reglas de gobernanza
+      - name: Validar Permisos y Rama
         uses: actions/github-script@v6
         with:
           script: |
-            // --- CONFIGURACIÓN ---
-            const allowedUsers = ['psaf-5', 'OtroAdmin']; 
-            const magicWord = 'hotfix'; 
-            
-            // --- DATOS ---
+            // 1. OBTENER DATOS
             const actor = context.actor;
+            const targetBranch = context.payload.pull_request.base.ref; // Hacia dónde va el PR
             const title = context.payload.pull_request.title.toLowerCase();
-            const targetBranch = context.payload.pull_request.base.ref; 
-            
-            console.log(`Usuario: ${actor} | Rama Destino: ${targetBranch}`);
 
-            // --- REGLA 1: SI NO VA A MAIN -> PASE LIBRE (VERDE ✅) ---
+            // 2. IMPRIMIR LOG PARA DEPURAR (Míralo si falla)
+            console.log("--------------------------------------------------");
+            console.log(`🤖 ANALIZANDO PR DE: ${actor}`);
+            console.log(`📍 RAMA DESTINO DETECTADA: ${targetBranch}`);
+            console.log("--------------------------------------------------");
+
+            // 3. REGLA DE ORO: SI NO ES MAIN, APRUEBA EN VERDE ✅
             if (targetBranch !== 'main') {
-              console.log("✅ La rama destino NO es main. Check Verde autorizado.");
-              return; // Al hacer return aquí, el script termina con éxito.
+              console.log("✅ La rama destino NO es main. El Guardián autoriza el paso.");
+              return; // ESTO HACE QUE EL CHECK SALGA VERDE
             }
 
-            // --- A PARTIR DE AQUÍ, SOLO APLICA SI VA A MAIN ---
-
-            // Regla 2: Es Hotfix?
-            if (title.includes(magicWord)) {
-              console.log("✅ Acceso permitido por Hotfix.");
+            // 4. SI LLEGAMOS AQUÍ, ES PORQUE ES MAIN. APLICAMOS SEGURIDAD 🔒
+            
+            // Lista de Admins
+            const allowedUsers = ['psaf-5', 'OtroAdmin']; 
+            
+            // ¿Es Hotfix?
+            if (title.includes('hotfix')) {
+              console.log("✅ Es Main, pero es Hotfix. Autorizado.");
               return;
             }
 
-            // Regla 3: Es Admin?
+            // ¿Es Admin?
             if (allowedUsers.includes(actor)) {
-               console.log("✅ Acceso permitido por Usuario Admin.");
+               console.log("✅ Es Main, pero usuario es Admin. Autorizado.");
                return;
             }
 
-            // --- BLOQUEO (ROJO ❌) ---
+            // 5. BLOQUEO FINAL (ROJO ❌)
+            // Solo llegamos aquí si: Es Main + No es Hotfix + No es Admin
+            console.log("⛔ BLOQUEANDO: Intento no autorizado a Main.");
+            
             try {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nHola @" + actor + ", no tienes permisos para ir directo a `main`.\n\n👉 Por favor cambia la rama destino a **`developer`**."
+                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nHola @" + actor + ", este PR va dirigido a **MAIN** y no tienes permisos.\n\n✅ **Solución:** Cambia la rama destino a **`developer`**."
               });
-            } catch (e) { console.log(e); }
+            } catch (e) {}
 
-            core.setFailed(`Usuario ${actor} no autorizado para main.`);
+            core.setFailed(`⛔ BLOQUEADO: El usuario ${actor} intentó ir a MAIN sin permiso.`);
