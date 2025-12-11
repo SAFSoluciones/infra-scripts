@@ -1,4 +1,4 @@
-name: Guardian Main
+name: Guardian de Main
 
 on:
   pull_request:
