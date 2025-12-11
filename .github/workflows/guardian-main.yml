@@ -1,10 +1,7 @@
-name: Guardian de Main
+name: Guardian Main
 
 on:
   pull_request:
-    # --- LA CLAVE DEL ÉXITO ---
-    # Esto hace que el script corra no solo al abrir, sino
-    # también si cambian la rama base (edited) o reabren.
     types: [opened, synchronize, reopened, edited]
 
 permissions:
@@ -15,51 +12,37 @@ jobs:
   verificar-permisos:
     runs-on: ubuntu-latest
     steps:
-      - name: Validar y Sobreescribir Estatus
+      - name: Validar Permisos
         uses: actions/github-script@v6
         with:
           script: |
-            // 1. OBTENER DATOS ACTUALIZADOS
             const actor = context.actor;
-            const targetBranch = context.payload.pull_request.base.ref; // Hacia dónde apunta AHORA
+            const targetBranch = context.payload.pull_request.base.ref;
             const title = context.payload.pull_request.title.toLowerCase();
 
-            console.log(`🤖 RE-EVALUANDO PR DE: ${actor}`);
-            console.log(`📍 RAMA DESTINO ACTUAL: ${targetBranch}`);
+            console.log(`🤖 REVISANDO PR DE: ${actor} HACIA ${targetBranch}`);
 
-            // 2. FUERZA BRUTA: SI NO ES MAIN, APRUEBA (Verde)
-            // Esto "borra" (sobreescribe) cualquier error rojo anterior del mismo commit.
+            // 1. SI NO ES MAIN, APROBAR (VERDE ✅)
             if (targetBranch !== 'main') {
-              console.log("✅ Destino seguro (Developer/Otro). Autorizando inmediatamente.");
+              console.log("✅ Destino no es Main. Autorizado.");
               return; 
             }
 
-            // 3. SI ES MAIN, APLICAR REGLAS
+            // 2. REGLAS PARA MAIN
             const allowedUsers = ['psaf-5', 'OtroAdmin']; 
-            
-            // Regla Hotfix
-            if (title.includes('hotfix')) {
-              console.log("✅ Es Main, pero es Hotfix.");
-              return;
-            }
-
-            // Regla Admin
-            if (allowedUsers.includes(actor)) {
-               console.log("✅ Es Main, pero es Admin.");
+            if (title.includes('hotfix') || allowedUsers.includes(actor)) {
+               console.log("✅ Autorizado por Admin o Hotfix.");
                return;
             }
 
-            // 4. BLOQUEO (Solo si sigue apuntando a Main y no tiene permiso)
-            console.log("⛔ BLOQUEANDO: Sigue apuntando a Main sin permiso.");
-            
-            // Intentamos dejar comentario (sin fallar si no se puede)
+            // 3. BLOQUEO ⛔
             try {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: "🛑 **ACCIÓN BLOQUEADA** 🛑\n\nEste PR apunta a **MAIN**.\n\n👉 **Solución:** Edita este PR (arriba a la derecha) y cambia la base a **`developer`**. El check se pondrá verde automáticamente."
+                body: "🛑 **BLOQUEADO** 🛑\n\nVas a **MAIN** sin permiso.\n👉 Cambia a **`developer`**."
               });
             } catch (e) {}
 
-            core.setFailed(`⛔ Bloqueado: Destino Main no autorizado.`);
+            core.setFailed(`⛔ Bloqueado: ${actor} intentó ir a MAIN.`);
