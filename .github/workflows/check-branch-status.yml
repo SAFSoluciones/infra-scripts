@@ -1,0 +1,56 @@
+name: Check Branch Status
+
+on:
+  pull_request:
+    branches:
+      - 'developer'
+
+jobs:
+  check-branch-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Clona la rama del PR directamente
+          ref: ${{ github.head_ref }}
+          # 0 para clonar el historial completo
+          fetch-depth: 0
+          
+      - name: Check if branch is up to date
+        id: check
+        run: |
+          # Fetch the latest state of the target branch (developer)
+          git fetch origin developer
+
+          # Count the number of commits in 'developer' that are not in the PR branch
+          COMMITS_BEHIND=$(git rev-list --count HEAD..origin/developer)
+          
+          # Set the output variable
+          echo "commits_behind=$COMMITS_BEHIND" >> $GITHUB_OUTPUT
+
+      - name: Report branch status
+        run: |
+          # 1. Recuperamos tus variables
+          COMMITS_BEHIND="${{ steps.check.outputs.commits_behind }}"
+          CURRENT_BRANCH="${{ github.head_ref }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+
+          # ==============================================================================
+          # NUEVA VALIDACIÓN (EXCEPCIÓN PARA BACKMERGE)
+          # Si viene de 'main' O el título dice 'backmerge' (mayúsculas o minúsculas)
+          # ==============================================================================
+          if [[ "$CURRENT_BRANCH" == "main" ]] || [[ "${PR_TITLE,,}" == *"backmerge"* ]]; then
+            echo "✅ Excepción de seguridad aceptada: Es un Backmerge/Main. Se omite validación de historial."
+            exit 0
+          fi
+
+          # ==============================================================================
+          # TU LÓGICA ORIGINAL (Solo se ejecuta si NO es Backmerge)
+          # ==============================================================================
+          if [ "$COMMITS_BEHIND" -gt 0 ]; then
+            echo "::warning:: ⚠️ La rama está desactualizada. Hay $COMMITS_BEHIND commits por detrás de 'developer'."
+            exit 1
+          else
+            echo "✅ La rama está al día con 'developer'. ¡Listo para fusionar!"
+          fi
