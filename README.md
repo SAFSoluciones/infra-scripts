@@ -9,7 +9,7 @@ Debido a que el ruleset(s) puefa "leer" los archivos .yml, el repositorio donde 
 
 ¿Es peligroso? No, en este caso específico.
 
-En este repositorio (infra-scripts) SOLO tendrás el archivo .yml con la lógica de validación (el script que dice "Si no eres x usuario, bloquea").
+En este repositorio (infra-scripts) SOLO tendrá el archivo .yml con la lógica de validación (el script que dice "Si no eres x usuario, bloquea").
 
 No hay código fuente de la empresa, ni contraseñas, ni bases de datos. Solo reglas de automatización.
 
