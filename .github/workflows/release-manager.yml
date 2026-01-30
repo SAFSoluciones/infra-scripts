@@ -1,0 +1,54 @@
+name: Release Manager (Masivo Version11)
+
+on:
+  # 1. Ejecución Manual (Botón de pánico o versiones específicas)
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Nombre de la versión (ej: v11.0.2026.01_1). Dejar vacío para usar fecha automática.'
+        required: false
+        type: string
+  
+  # 2. Ejecución Programada: Días 15 y 30 de cada mes a las 12:00 M UTC
+  schedule:
+    - cron: '0 12 15,30 * *'
+
+jobs:
+  execute-release:
+    name: Crear Ramas de Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Descargamos el código de ESTE repositorio (infra-scripts) para acceder al script .sh
+      - name: Checkout infra-scripts
+        uses: actions/checkout@v4
+
+      # Definimos el nombre del release (Input manual O Fecha automática)
+      - name: Definir nombre del Release (Tag)
+        id: vars
+        run: |
+          if [ -z "${{ inputs.version_name }}" ]; then
+            # Si no escribiste nada, genera: v11.0.AÑO.MES (ej: v11.0.2026.01)
+            echo "RELEASE_TAG=v11.0.$(date +'%Y.%m')" >> $GITHUB_ENV
+          else
+            # Si escribiste algo manualmente, usa eso.
+            echo "RELEASE_TAG=${{ inputs.version_name }}" >> $GITHUB_ENV
+          fi
+
+      # Ejecutamos el script maestro
+      - name: Ejecutar Script de Creación Masiva
+        env:
+          # TOKEN: Debe ser un Secret con permisos de 'repo' y 'read:org'
+          GH_TOKEN: ${{ secrets.GH_ORG_TOKEN }} 
+          
+          # CONFIGURACIÓN GENERAL
+          ORG_NAME: "SAFSoluciones"
+          BASE_BRANCH: "developer"   # <--- La rama origen corregida
+          PROD_BRANCH: "main"        # La rama contra la que comparamos
+          VERSION_NAME: ${{ env.RELEASE_TAG }}
+        run: |
+          # Damos permisos de ejecución por si acaso
+          chmod +x scripts/create-releases.sh
+          
+          # Ejecutamos
+          ./scripts/create-releases.sh
