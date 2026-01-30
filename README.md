@@ -1,6 +1,8 @@
 # infra-scripts
 Automatización centralizada para estandarización de repositorios.
 
+🔥
+
 # Repositorio público 
 
 Debido a que el ruleset(s) puefa "leer" los archivos .yml, el repositorio donde está guardado debe ser accesible. Como no está la opción "internal", la única forma de centralizarlo es hacerlo público.
@@ -13,8 +15,7 @@ No hay código fuente de la empresa, ni contraseñas, ni bases de datos. Solo re
 
 Los otros repositorios (donde está el código real) seguirán siendo Privados y seguros.
 
-
-################################### De aquí para abajo, está la documentación de la automatización del release.###################################
+🔥
 
 # 🚀 Automatización del Ciclo de Release (Version11)
 
