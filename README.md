@@ -17,57 +17,87 @@ Los otros repositorios (donde está el código real) seguirán siendo Privados y
 
 🔥
 
-# 🛡️ Gobernanza y Automatización de Repositorios (DevSecOps)
+📋 Gobernanza, Seguridad y Flujo de Trabajo
+Este repositorio opera bajo una arquitectura de seguridad centralizada mediante GitHub Rulesets y Workflows de Validación. El objetivo es mantener un historial limpio, asegurar la calidad del código y prevenir errores humanos en ramas críticas.
 
-Este documento describe la arquitectura de gobernanza implementada en la organización para estandarizar el flujo de desarrollo, proteger las ramas críticas y automatizar el mantenimiento.
+1. Arquitectura de Ramas (Rulesets)
+La protección de ramas ya no se gestiona individualmente en cada repositorio, sino a través de 3 Rulesets globales de la organización:
 
-## 1. Workflow Centralizado: "El Guardián" (`guardian-main.yml`)
+Ruleset,Alcance,Objetivo y Restricciones
+🛡️ Protección Global Main,main,Control de Flujo: Evita escrituras directas. Nadie puede hacer push directo a producción; todo debe pasar por Pull Request.
 
-Este script actúa como una barrera de seguridad inteligente en todos los Pull Requests. Se encuentra alojado en el repositorio `infra-scripts` y es reutilizado por toda la organización.
+🔐 Seguridad: Main & Developer,"main, developer",Integridad:• Prohibido borrar la rama o hacer force push.• Revisión Obligatoria: Se requiere al menos 1 aprobación humana para fusionar.• Seguridad: Descarta aprobaciones obsoletas si se sube código nuevo (Dismiss stale reviews).
 
-- **Ubicación:** `infra-scripts/.github/workflows/guardian-main.yml`
-- **Disparadores (Triggers):** Se ejecuta cuando un PR es creado (`opened`), editado (`edited`), reabierto (`reopened`) o cuando se sube código nuevo (`synchronize`).
+✅ Validación: Rama Actualizada,developer,"Calidad: Exige que los workflows de CI/CD (linting, tests) pasen exitosamente antes de permitir la fusión (Status Check Required)."
 
-### 🧠 Lógica de Decisión
+🔥
 
-El Guardián evalúa el destino del PR y toma decisiones automáticas:
+2. Workflows de Automatización (.github/workflows)
+Estos archivos controlan las validaciones automáticas en cada Pull Request.
 
-| Rama Destino | Acción del Guardián | Resultado |
-| :--- | :--- | :--- |
-| **`developer`** | **Modo Pasivo:** Detecta que es un entorno de desarrollo seguro. | ✅ **Aprueba (Check Verde)** automáticamente. Sirve para limpiar errores previos. |
-| **`main`** | **Modo Activo:** Verifica permisos estrictos. | 🔒 **Analiza condiciones:** <br>1. ¿Es Admin? ➡ Pasa ✅<br>2. ¿Es Hotfix? ➡ Pasa ✅<br>3. ¿Ninguno? ➡ **Bloquea ❌** y deja comentario. |
+A. guardian-main.yml (El Guardián de Producción) Este workflow actúa como un "portero" inteligente para proteger la rama main.
 
----
+Función: Se ejecuta en cada PR.
 
-## 2. GitHub Rulesets (Reglas Globales)
+Lógica:
 
-Se ha configurado un **Ruleset** a nivel de Organización para aplicar políticas de seguridad sin necesidad de configurar repositorio por repositorio.
+Válvula de Escape: Si el PR va dirigido a developer, el guardián aprueba automáticamente (Exit 0).
 
-- **Nombre de la Regla:** `Protección Global Main` (o Estandarización).
-- **Alcance:** Aplica a `All repositories` (Todos los repositorios) o lista `Target`.
-- **Ramas Protegidas (Target Branches):**
-  1. `Default` (Generalmente `main`).
-  2. `developer` (Incluida explícitamente para permitir la ejecución del Guardián).
+Protección de Main: Si el PR va dirigido a main, verifica:
 
-### ⚙️ Reglas Aplicadas
+¿Es un Hotfix? (El título contiene hotfix).
 
-1.  **Require workflows to pass:**
-    * Obliga a que el workflow `guardian-main.yml` se ejecute y termine exitosamente (Verde ✅) antes de permitir un Merge.
-2.  **Restrict deletions:**
-    * Impide que cualquier usuario (incluso admins, dependiendo de la config) borre accidentalmente las ramas `main` o `developer`.
+¿Es un Admin autorizado? (Lista blanca de usuarios).
 
----
+Bloqueo: Si no cumple lo anterior, el workflow falla ⛔ y deja un comentario indicando que se debe apuntar a developer.
 
-## 3. Política de Limpieza (Ramas de Vida Corta)
+B. check-branch-status.yml (Validación de Código) Sustituye al antiguo dummy-check.yml.
 
-Para mantener la higiene de los repositorios y evitar la acumulación de ramas obsoletas, se ha activado la siguiente política automática:
+Función: Asegura que el código cumpla con los estándares técnicos.
 
-- **Configuración:** `Automatically delete head branches` (Activo).
-- **Comportamiento:**
-    * Cuando un Pull Request se fusiona (Merge) exitosamente hacia `developer` o `main`, la rama de origen (ej: `feature/SS5-1234`) **se elimina automáticamente**.
-    * **Excepción:** Las ramas protegidas por el Ruleset (`developer`, `main`) no se borran gracias a la regla *Restrict deletions*.
+Lógica: Ejecuta pruebas unitarias, linters o validaciones de sintaxis. Es un requisito obligatorio (Status Check) para poder fusionar en developer.
 
----
+3. Flujo de Trabajo Recomendado (Git Flow)
+Para evitar bloqueos y mantener el orden, sigue este ciclo:
+
+Desarrollo:
+
+Crea una rama feature/ o fix/ desde developer.
+
+Trabaja en tus cambios.
+
+Integración (Hacia Developer):
+
+Abre un Pull Request hacia developer.
+
+El Guardián te dará luz verde ✅.
+
+Espera a que pasen los checks automáticos.
+
+Solicita revisión a un compañero (1 aprobación requerida).
+
+Fusión: Se utiliza Squash Merge para mantener un historial lineal y limpio.
+
+Despliegue (Hacia Main):
+
+Solo los Administradores o procesos de Release crean PRs de developer hacia main.
+
+⚠️ Importante: Al fusionar hacia main, desactivar la opción "Delete head branch" para evitar borrar developer accidentalmente.
+
+4. Solución de Problemas Comunes
+Error: "Required workflow did not pass" en una rama vieja:
+
+Causa: La rama tiene una versión antigua de los workflows o busca archivos eliminados (dummy-check).
+
+Solución: Actualiza tu rama con developer (git pull origin developer o botón "Update branch").
+
+Error: "Vas a MAIN sin permiso" (El Guardián falla):
+
+Causa: El PR apunta a main y no es un hotfix.
+
+Solución: Edita el PR (botón "Edit" junto al título) y cambia la "Base branch" a developer. El Guardián se actualizará automáticamente.
+
+🔥
 
 # 🚀 Automatización del Ciclo de Release (Version11)
 
