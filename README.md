@@ -17,85 +17,85 @@ Los otros repositorios (donde está el código real) seguirán siendo Privados y
 
 🔥
 
-📋 Gobernanza, Seguridad y Flujo de Trabajo
-Este repositorio opera bajo una arquitectura de seguridad centralizada mediante GitHub Rulesets y Workflows de Validación. El objetivo es mantener un historial limpio, asegurar la calidad del código y prevenir errores humanos en ramas críticas.
+# 🛡️ Gobernanza de Repositorio y Flujo de Trabajo
 
-1. Arquitectura de Ramas (Rulesets)
-La protección de ramas ya no se gestiona individualmente en cada repositorio, sino a través de 3 Rulesets globales de la organización:
+Este documento define los estándares de seguridad, la arquitectura de ramas y los procesos de automatización implementados en la organización para garantizar la integridad y calidad del código.
 
-Ruleset,Alcance,Objetivo y Restricciones
-🛡️ Protección Global Main,main,Control de Flujo: Evita escrituras directas. Nadie puede hacer push directo a producción; todo debe pasar por Pull Request.
+---
 
-🔐 Seguridad: Main & Developer,"main, developer",Integridad:• Prohibido borrar la rama o hacer force push.• Revisión Obligatoria: Se requiere al menos 1 aprobación humana para fusionar.• Seguridad: Descarta aprobaciones obsoletas si se sube código nuevo (Dismiss stale reviews).
+## 1. Arquitectura de Seguridad (Rulesets)
 
-✅ Validación: Rama Actualizada,developer,"Calidad: Exige que los workflows de CI/CD (linting, tests) pasen exitosamente antes de permitir la fusión (Status Check Required)."
+La protección de los repositorios está centralizada a nivel de organización mediante tres **GitHub Rulesets**. Ya no se utilizan las reglas clásicas de protección por repositorio.
 
-🔥
+| Ruleset | Ramas Afectadas | Restricciones y Políticas |
+| :--- | :--- | :--- |
+| **🟢 Protección Global Main** | `main` | • **Bloqueo de Escritura:** Nadie puede hacer push directo a producción.<br>• **PR Obligatorio:** Todo cambio debe entrar mediante Pull Request. |
+| **🔒 Seguridad: Main & Developer** | `main`, `developer` | • **Integridad:** Prohibido eliminar la rama o hacer `force push`.<br>• **Revisión Humana:** Se requiere al menos **1 Aprobación** para fusionar.<br>• **Seguridad:** *Dismiss stale reviews* (si subes cambios nuevos, se borran las aprobaciones anteriores). |
+| **✅ Validación: Rama Actualizada** | `developer` | • **Status Checks:** Exige que los workflows de CI/CD (validaciones técnicas) pasen exitosamente antes de permitir la fusión. |
 
-2. Workflows de Automatización (.github/workflows)
-Estos archivos controlan las validaciones automáticas en cada Pull Request.
+> **Nota:** Existe un equipo `Admins-Bypass` para operaciones de emergencia, pero se recomienda seguir el flujo estándar siempre que sea posible.
 
-A. guardian-main.yml (El Guardián de Producción) Este workflow actúa como un "portero" inteligente para proteger la rama main.
+---
 
-Función: Se ejecuta en cada PR.
+## 2. Workflows de Automatización
 
-Lógica:
+En la carpeta `.github/workflows/` encontrarás los siguientes procesos automáticos:
 
-Válvula de Escape: Si el PR va dirigido a developer, el guardián aprueba automáticamente (Exit 0).
+### 🤖 `guardian-main.yml` (El Guardián)
+Controla el tráfico de Pull Requests para proteger Producción.
+* **Lógica:**
+    * Si el PR apunta a `developer` 👉 **Aprueba automáticamente** (Check Verde ✅).
+    * Si el PR apunta a `main` 👉 **Verifica permisos estrictos**:
+        * ¿El título dice `hotfix`?
+        * ¿El autor es un Admin autorizado?
+    * Si no cumple las condiciones para ir a `main`, el workflow falla ⛔ y deja un comentario de bloqueo.
 
-Protección de Main: Si el PR va dirigido a main, verifica:
+### 🛠️ `check-branch-status.yml`
+*Sustituye al antiguo `dummy-check.yml`.*
+* **Función:** Ejecuta validaciones técnicas (linting, tests, sintaxis) obligatorias.
+* **Requisito:** Debe finalizar en **Success** para poder fusionar en `developer`.
 
-¿Es un Hotfix? (El título contiene hotfix).
+---
 
-¿Es un Admin autorizado? (Lista blanca de usuarios).
+## 3. Guía de Contribución (Git Flow)
 
-Bloqueo: Si no cumple lo anterior, el workflow falla ⛔ y deja un comentario indicando que se debe apuntar a developer.
+### Paso 1: Desarrollo
+* Crea tu rama de trabajo (feature/bugfix) siempre partiendo desde `developer`.
+* `git checkout -b feature/mi-nueva-funcionalidad developer`
 
-B. check-branch-status.yml (Validación de Código) Sustituye al antiguo dummy-check.yml.
+### Paso 2: Pull Request hacia Developer
+1. Abre el PR apuntando a `base: developer`.
+2. Espera a que el **Guardián** y los **Checks** pasen.
+3. Solicita revisión a un compañero (1 aprobación requerida).
+4. **Fusión:** Utiliza **Squash and Merge** para mantener un historial lineal y limpio en la rama `developer`.
 
-Función: Asegura que el código cumpla con los estándares técnicos.
+### Paso 3: Despliegue a Producción (Main)
+* Solo para Admins o Release Managers.
+* Crea un PR de `developer` -> `main`.
+* ⚠️ **IMPORTANTE:** Al momento de fusionar, asegúrate de **DESMARCAR** la opción *"Delete head branch"* (Borrar rama de origen).
+    * *Razón:* Si la dejas marcada, GitHub intentará borrar la rama `developer`, lo cual debe evitarse.
 
-Lógica: Ejecuta pruebas unitarias, linters o validaciones de sintaxis. Es un requisito obligatorio (Status Check) para poder fusionar en developer.
+---
 
-3. Flujo de Trabajo Recomendado (Git Flow)
-Para evitar bloqueos y mantener el orden, sigue este ciclo:
+## 4. Solución de Problemas Frecuentes (Troubleshooting)
 
-Desarrollo:
+### ❌ Error: "Required workflow did not pass" (Check fantasma)
+* **Síntoma:** Aparece un check fallido buscando un archivo antiguo (ej. `dummy-check`) o una versión vieja del workflow.
+* **Causa:** Tu rama está desactualizada y no tiene los cambios recientes de infraestructura.
+* **Solución:** Actualiza tu rama con `developer`.
+  * Opción A: Botón "Update branch" en el PR.
+  * Opción B: `git pull origin developer` y luego `git push`.
 
-Crea una rama feature/ o fix/ desde developer.
+### ⛔ Error: "Vas a MAIN sin permiso"
+* **Síntoma:** El Guardián bloquea el PR con un comentario rojo, aunque ya cambiaste el destino a `developer`.
+* **Causa:** El workflow necesita volver a ejecutarse para detectar el cambio de rama.
+* **Solución:**
+  1. Asegúrate de que el destino sea `developer`.
+  2. Si el check no se actualiza solo, cierra el PR y ábrelo de nuevo apuntando correctamente desde el inicio.
 
-Trabaja en tus cambios.
-
-Integración (Hacia Developer):
-
-Abre un Pull Request hacia developer.
-
-El Guardián te dará luz verde ✅.
-
-Espera a que pasen los checks automáticos.
-
-Solicita revisión a un compañero (1 aprobación requerida).
-
-Fusión: Se utiliza Squash Merge para mantener un historial lineal y limpio.
-
-Despliegue (Hacia Main):
-
-Solo los Administradores o procesos de Release crean PRs de developer hacia main.
-
-⚠️ Importante: Al fusionar hacia main, desactivar la opción "Delete head branch" para evitar borrar developer accidentalmente.
-
-4. Solución de Problemas Comunes
-Error: "Required workflow did not pass" en una rama vieja:
-
-Causa: La rama tiene una versión antigua de los workflows o busca archivos eliminados (dummy-check).
-
-Solución: Actualiza tu rama con developer (git pull origin developer o botón "Update branch").
-
-Error: "Vas a MAIN sin permiso" (El Guardián falla):
-
-Causa: El PR apunta a main y no es un hotfix.
-
-Solución: Edita el PR (botón "Edit" junto al título) y cambia la "Base branch" a developer. El Guardián se actualizará automáticamente.
+### ⚠️ Error: Se borró la rama Developer
+* **Causa:** Se realizó un merge a `main` con la opción *"Automatically delete head branches"* activa y permisos de Admin (Bypass).
+* **Solución:** Un Administrador debe restaurar la rama inmediatamente desde la interfaz de GitHub ("Restore branch").
 
 🔥
 
