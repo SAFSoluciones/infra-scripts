@@ -9,9 +9,9 @@ on:
         required: false
         type: string
   
-  # 2. Ejecución Programada: Días 15 y 30 de cada mes a las 12:00 M UTC
+  # 2. Ejecución: Días 15 y 30 a las 18:00 UTC (12:00 PM Honduras)
   schedule:
-    - cron: '0 12 15,30 * *'
+    - cron: '0 18 15,30 * *'
 
 jobs:
   execute-release:
