@@ -1,0 +1,27 @@
+name: Limpieza de Ramas (Borrado Masivo)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: 'Nombre de la rama a DESTRUIR (ej: release/v11.0.2026.01)'
+        required: true
+        type: string
+
+jobs:
+  delete-branches:
+    name: Borrar Ramas
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout infra-scripts
+        uses: actions/checkout@v4
+
+      - name: Ejecutar Script de Limpieza
+        env:
+          GH_TOKEN: ${{ secrets.GH_ORG_TOKEN }} 
+          ORG_NAME: "SAFSoluciones"
+          BRANCH_TO_DELETE: ${{ inputs.branch_name }}
+        run: |
+          chmod +x scripts/delete-branches.sh
+          ./scripts/delete-branches.sh
